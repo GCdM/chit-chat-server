@@ -1,8 +1,9 @@
 if (process.env.NODE_ENV !== 'production') require('dotenv').config()
 
 const app = require('express')()
-const https = require('https')
-const fs = require('fs')
+const http = require('http')
+// const https = require('https')
+// const fs = require('fs')
 // const io = require('socket.io')(server)
 const mongoose = require('mongoose')
 
@@ -13,14 +14,14 @@ const ConversationSchema = require('./src/db/ConversationSchema')
 const MessageSchema = require('./src/db/MessageSchema')
 
 ///// CONFIGURE SSL/TLS /////
-const options = {
-  key: fs.readFileSync("./ssl/localhost.key"),
-  // key: fs.readFileSync("/srv/www/keys/my-site-key.pem"),
-  cert: fs.readFileSync("./ssl/localhost.crt"),
-  // cert: fs.readFileSync("/srv/www/keys/chain.pem"),
-}
+// const options = {
+//   key: fs.readFileSync("./ssl/aliashost.key"),
+//   cert: fs.readFileSync("./ssl/aliashost.crt"),
+// }
 
-const server = https.createServer(options, app)
+// const server = https.createServer(options, app)
+
+const server = http.Server(app)
 
 ///// SPIN UP SERVER /////
 //////////////////////////
@@ -47,14 +48,14 @@ db.once('open', () => {
 ///// MIDDLEWARES /////
 ///////////////////////
 ///// Set headers for CORS policy
-// app.use((req, res, next) => {
-//   debugger
-//   res.header('Access-Control-Allow-Origin', '*')  
-//   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
-//   res.header('Access-Control-Allow-Credentials', 'true')
+app.use((req, res, next) => {
 
-//   next()
-// })
+  res.header('Access-Control-Allow-Origin', '*')  
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
+  res.header('Access-Control-Allow-Credentials', 'true')
+
+  next()
+})
 
 ///// HTTP ROUTES /////
 ///////////////////////
