@@ -71,8 +71,8 @@ const serverInit = () => {
     cookieName: 'id',
     requestKey: 'session',
     secret: process.env['CHITCHAT_SESSION_SECRET'],
-    duration: 1000 * 60 * 60, // 1h
-    activeDuration: 1000 * 60 * 10, // 10min
+    duration: 1000 * 60 * 30, // 30min
+    activeDuration: 1000 * 60 * 5, // 5min
     cookie: {
       httpOnly: true,
       // secure: true, ENABLE WHEN USING HTTPS
@@ -82,6 +82,7 @@ const serverInit = () => {
 
   ///// Load user into session
   app.use(async (req, res, next) => {
+    // Conduct further checks to prevent session hijacking
     if (req.session.userId) {
       req.user = await User.findById(req.session.userId)
     }
@@ -132,6 +133,12 @@ const serverInit = () => {
 
       res.status(200).send( sanitisedUser )
     })
+  })
+
+  app.get('/logout', (req, res) => {
+    req.session.destroy()
+
+    res.status(200).send({ message: "Logged out" })
   })
 
   app.get('/validate', (req, res) => {
