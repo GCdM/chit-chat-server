@@ -7,16 +7,19 @@ const http = require('http')
 // const io = require('socket.io')(server)
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
+const sessionCookie = require('client-sessions')
 
 const db = require('./src/db/db')
 const UserSchema = require('./src/db/UserSchema')
 const ConversationSchema = require('./src/db/ConversationSchema')
 const MessageSchema = require('./src/db/MessageSchema')
+const serialiser = require('./src/serialiser')
 
 ///// CONFIGURE SSL/TLS /////
+/////////////////////////////
 // const options = {
-//   key: fs.readFileSync("./ssl/aliashost.key"),
-//   cert: fs.readFileSync("./ssl/aliashost.crt"),
+//   key: fs.readFileSync('./ssl/aliashost.key'),
+//   cert: fs.readFileSync('./ssl/aliashost.crt'),
 // }
 
 // const server = https.createServer(options, app)
@@ -24,8 +27,8 @@ const MessageSchema = require('./src/db/MessageSchema')
 const app = express()
 const server = http.Server(app)
 
-///// SPIN UP SERVER /////
-//////////////////////////
+///// CONNECT TO DB /////
+/////////////////////////
 ///// Handle database connection error
 db.on('error', (err) => {
   console.log('MongoDB Connection Error: ', err)
@@ -34,7 +37,6 @@ db.on('error', (err) => {
 ///// Check that the databse connected succesfully
 db.once('open', () => {
   console.log('MongoDB Connected!')
-
   
   ///// Listen on relevant port and initialise server
   server.listen(process.env['CHITCHAT_PORT'], () => {
@@ -43,6 +45,8 @@ db.once('open', () => {
   })
 })
 
+///// SPIN UP SERVER /////
+//////////////////////////
 const serverInit = () => {
   ///// Create DB Models
   const User = new mongoose.model('User', UserSchema)
@@ -53,59 +57,93 @@ const serverInit = () => {
   ///////////////////////
   ///// Set headers for CORS policy
   app.use((req, res, next) => {
-
     res.header('Access-Control-Allow-Origin', '*')  
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
-    // res.header('Access-Control-Allow-Credentials', 'true') NEEDED FOR COOKIE BASED SESSION MANAGEMENT
 
     next()
   })
 
+  ///// JSON body parser
   app.use( express.json({ type: 'application/json' }) )
+
+  ///// Encrypted session cookie manager
+  app.use(sessionCookie({
+    cookieName: 'id',
+    requestKey: 'session',
+    secret: process.env['CHITCHAT_SESSION_SECRET'],
+    duration: 1000 * 60 * 60, // 1h
+    activeDuration: 1000 * 60 * 10, // 10min
+    cookie: {
+      httpOnly: true,
+      // secure: true, ENABLE WHEN USING HTTPS
+      // ephemeral: true, SET FOR HEAVY SECURITY (LOGGING THE USER OUT EACH TIME THEY CLOSE THE APP)
+    },
+  }))
+
+  ///// Load user into session
+  app.use(async (req, res, next) => {
+    if (req.session.userId) {
+      req.user = await User.findById(req.session.userId)
+    }
+
+    next()
+  })
+
+  ///// Logging / debugging middleware
+  app.use((req, res, next) => {
+    console.log('===>>>', req.method, ' to ', req.path)
+    // debugger
+    next()
+  })
 
   ///// HTTP ROUTES /////
   ///////////////////////
   app.get('/status', (req, res) => {
-    console.log("==> GET to /status")
-
-    res.status(200).send({ status: "Up and running" })
+    res.status(200).send({ status: 'Up and running' })
   })
 
   app.post('/signup', (req, res) => {
-    console.log("==> POST to /signup")
     // VALIDATE USERNAME IS UNIQUE AND PASSWORD IS SATISFACTORY
-
     const passwordDigest = bcrypt.hashSync(req.body.password, 12)
 
     User.create({ username: req.body.username, passwordDigest }, (err, newUser) => {
       if (err) res.status(400).send({
-        message: "Could not create user",
+        message: 'Could not create user',
         error: err
       })
 
-      // REMEBER TO REMOVE PASSWORDDIGEST & ANYTHING UNNECESSARY
-      newUser.passwordDigest = undefined
-      newUser._v = undefined
+      req.session.userId = user.id
+      const sanitisedUser = serialiser.sanitiseUser(user)
 
-      res.status(200).send( newUser )
+      res.status(200).send( sanitisedUser )
     })
   })
 
   app.post('/login', (req, res) => {
-    console.log("==> POST to /login")
-
     User.findOne({ username: req.body.username }, (err, user) => {
       const correctPassword = bcrypt.compareSync(req.body.password, user.passwordDigest)
       if (err || !correctPassword) return res.status(400).send({
-        message: "Could not log in",
-        error: "The username and password do not match any of our records"
+        error: 'Could not log in',
+        message: 'Username and password do not match any of our records',
       })
 
-      // REMEBER TO REMOVE PASSWORDDIGEST & ANYTHING UNNECESSARY
-      user.passwordDigest = undefined
-      user._v = undefined
+      req.session.userId = user.id
+      const sanitisedUser = serialiser.sanitiseUser(user)
 
-      res.status(200).send( user )
+      res.status(200).send( sanitisedUser )
     })
+  })
+
+  app.get('/validate', (req, res) => {
+    if (req.user) {
+      const sanitisedUser = serialiser.sanitiseUser(req.user)
+
+      res.status(200).send( sanitisedUser )
+    } else {
+      res.status(401).send({
+        error: 'Not logged in',
+        message: 'Session is unauthenticated or expired',
+      })
+    }
   })
 }
