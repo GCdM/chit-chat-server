@@ -6,6 +6,7 @@ const http = require('http')
 // const fs = require('fs')
 // const io = require('socket.io')(server)
 const mongoose = require('mongoose')
+const crypto = require('crypto')
 const bcrypt = require('bcryptjs')
 const sessionCookie = require('client-sessions')
 
@@ -13,7 +14,8 @@ const db = require('./src/db/db')
 const UserSchema = require('./src/db/UserSchema')
 const ConversationSchema = require('./src/db/ConversationSchema')
 const MessageSchema = require('./src/db/MessageSchema')
-const serialiser = require('./src/serialiser')
+const serialiser = require('./src/utils/serialiser')
+const { pubPrivPairConfig } = require('./src/utils/configuration')
 
 ///// CONFIGURE SSL/TLS /////
 /////////////////////////////
@@ -112,10 +114,16 @@ const serverInit = () => {
         message: 'Could not create user',
         error: err
       })
-
-      req.session.userId = user.id
-      const sanitisedUser = serialiser.sanitiseUser(user)
-
+      
+      req.session.userId = newUser.id
+      ///// Generate RSA pub/priv key pair
+      const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', pubPrivPairConfig)
+      newUser.publicKey = publicKey
+      newUser.save()
+      
+      const sanitisedUser = serialiser.sanitiseUser(newUser)
+      sanitisedUser.privateKey = privateKey
+      
       res.status(200).send( sanitisedUser )
     })
   })
