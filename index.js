@@ -15,6 +15,7 @@ const UserSchema = require('./src/db/UserSchema')
 const ConversationSchema = require('./src/db/ConversationSchema')
 const MessageSchema = require('./src/db/MessageSchema')
 const serialiser = require('./src/utils/serialiser')
+const helper = require('./src/utils/helper')
 const { pubPrivPairConfig } = require('./src/utils/configuration')
 
 ///// CONFIGURE SSL/TLS /////
@@ -119,10 +120,11 @@ const serverInit = () => {
       ///// Generate RSA pub/priv key pair
       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', pubPrivPairConfig)
       newUser.publicKey = publicKey
+      newUser.encPrivateKey = helper.encryptData(privateKey, req.body.password)
       newUser.save()
       
+      // console.log(newUser.username, "'s private key is: ", privateKey)
       const sanitisedUser = serialiser.sanitiseUser(newUser)
-      sanitisedUser.privateKey = privateKey
       
       res.status(200).send( sanitisedUser )
     })
@@ -130,7 +132,9 @@ const serverInit = () => {
 
   app.post('/login', (req, res) => {
     User.findOne({ username: req.body.username }, (err, user) => {
-      const correctPassword = bcrypt.compareSync(req.body.password, user.passwordDigest)
+      let correctPassword
+      if (user) correctPassword = bcrypt.compareSync(req.body.password, user.passwordDigest)
+      
       if (err || !correctPassword) return res.status(400).send({
         error: 'Could not log in',
         message: 'Username and password do not match any of our records',
