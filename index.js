@@ -109,12 +109,14 @@ const serverInit = () => {
     })
   }
 
-  ///// HTTP ROUTES /////
+  ///// MISC ROUTES /////
   ///////////////////////
   app.get('/status', (req, res) => {
     res.status(200).send({ status: 'Up and running' })
   })
 
+  ///// AUTH ROUTES /////
+  ///////////////////////
   app.post('/signup', (req, res) => {
     // VALIDATE USERNAME IS UNIQUE AND PASSWORD IS SATISFACTORY
     const passwordDigest = bcrypt.hashSync(req.body.password, 12)
@@ -175,9 +177,17 @@ const serverInit = () => {
     }
   })
 
+  ///// DATA ROUTES /////
+  ///////////////////////
   app.get('/initial_data', loginRequired, async (req, res) => {
     const conversationPreviews = await req.user.myConversations()
-    
+
     res.status(200).send({ conversationPreviews })
+  })
+
+  app.get('/other_users', loginRequired, async (req, res) => {
+    const otherUsers = await req.user.otherUsers()
+
+    res.status(200).send( otherUsers )
   })
 }
