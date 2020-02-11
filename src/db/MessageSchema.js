@@ -1,6 +1,6 @@
 const mongoose = require('mongoose')
 
 module.exports = new mongoose.Schema({
-  senderId: Number,
+  senderId: mongoose.ObjectId,
   content: String,
 })

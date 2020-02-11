@@ -5,15 +5,15 @@ const http = require('http')
 // const https = require('https')
 // const fs = require('fs')
 // const io = require('socket.io')(server)
-const mongoose = require('mongoose')
+// const mongoose = require('mongoose')
 const crypto = require('crypto')
 const bcrypt = require('bcryptjs')
 const sessionCookie = require('client-sessions')
 
 const db = require('./src/db/db')
-const UserSchema = require('./src/db/UserSchema')
-const ConversationSchema = require('./src/db/ConversationSchema')
-const MessageSchema = require('./src/db/MessageSchema')
+// const UserSchema = require('./src/db/UserSchema')
+// const ConversationSchema = require('./src/db/ConversationSchema')
+// const MessageSchema = require('./src/db/MessageSchema')
 const serialiser = require('./src/utils/serialiser')
 const helper = require('./src/utils/helper')
 const { pubPrivPairConfig } = require('./src/utils/configuration')
@@ -33,12 +33,12 @@ const server = http.Server(app)
 ///// CONNECT TO DB /////
 /////////////////////////
 ///// Handle database connection error
-db.on('error', (err) => {
-  console.log('MongoDB Connection Error: ', err)
+db.connection.on('error', (err) => {
+  console.log('MongoDB Error: ', err)
 })
 
 ///// Check that the databse connected succesfully
-db.once('open', () => {
+db.connection.once('open', () => {
   console.log('MongoDB Connected!')
   
   ///// Listen on relevant port and initialise server
@@ -52,9 +52,9 @@ db.once('open', () => {
 //////////////////////////
 const serverInit = () => {
   ///// Create DB Models
-  const User = new mongoose.model('User', UserSchema)
-  const Conversation = new mongoose.model('Conversation', ConversationSchema)
-  const Message = new mongoose.model('Message', MessageSchema)
+  // const User = new mongoose.model('User', UserSchema)
+  // const Conversation = new mongoose.model('Conversation', ConversationSchema)
+  // const Message = new mongoose.model('Message', MessageSchema)
 
   ///// MIDDLEWARES /////
   ///////////////////////
@@ -87,7 +87,7 @@ const serverInit = () => {
   app.use(async (req, res, next) => {
     // Conduct further checks to prevent session hijacking
     if (req.session.userId) {
-      req.user = await User.findById(req.session.userId)
+      req.user = await db.User.findById(req.session.userId)
     }
 
     next()
@@ -100,6 +100,15 @@ const serverInit = () => {
     next()
   })
 
+  const loginRequired = (req, res, next) => {
+    if (req.user) return next()
+
+    res.status(403).send({
+      error: "Login required",
+      message: "You must be logged in access this route",
+    })
+  }
+
   ///// HTTP ROUTES /////
   ///////////////////////
   app.get('/status', (req, res) => {
@@ -110,7 +119,7 @@ const serverInit = () => {
     // VALIDATE USERNAME IS UNIQUE AND PASSWORD IS SATISFACTORY
     const passwordDigest = bcrypt.hashSync(req.body.password, 12)
 
-    User.create({ username: req.body.username, passwordDigest }, (err, newUser) => {
+    db.User.create({ username: req.body.username, passwordDigest }, (err, newUser) => {
       if (err) res.status(400).send({
         message: 'Could not create user',
         error: err
@@ -131,10 +140,10 @@ const serverInit = () => {
   })
 
   app.post('/login', (req, res) => {
-    User.findOne({ username: req.body.username }, (err, user) => {
+    db.User.findOne({ username: req.body.username }, (err, user) => {
       let correctPassword
       if (user) correctPassword = bcrypt.compareSync(req.body.password, user.passwordDigest)
-      
+
       if (err || !correctPassword) return res.status(400).send({
         error: 'Could not log in',
         message: 'Username and password do not match any of our records',
@@ -164,5 +173,11 @@ const serverInit = () => {
         message: 'Session is unauthenticated or expired',
       })
     }
+  })
+
+  app.get('/initial_data', loginRequired, async (req, res) => {
+    const conversationPreviews = await req.user.myConversations()
+    
+    res.status(200).send({ conversationPreviews })
   })
 }

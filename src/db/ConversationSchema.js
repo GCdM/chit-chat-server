@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 
 module.exports = new mongoose.Schema({
-  originalSenderId: Number,
-  originalReceiverId: Number,
+  originalSenderId: String,
+  originalRecipientId: String,
   status: String,
 })
