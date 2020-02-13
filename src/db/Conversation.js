@@ -4,10 +4,14 @@ const User = require('./User')
 const Message = require('./Message')
 
 const ConversationSchema = new mongoose.Schema({
-  originalSenderId: String,
-  originalRecipientId: String,
-  status: String,
-})
+    originalSenderId: String,
+    originalRecipientId: String,
+    status: String,
+  },
+  {
+    timestamps: true,
+  }
+)
 
 const Conversation = mongoose.model('Conversation', ConversationSchema)
 

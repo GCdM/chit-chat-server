@@ -95,7 +95,7 @@ const serverInit = () => {
 
   ///// Logging / debugging middleware
   app.use((req, res, next) => {
-    console.log('===>>>', req.method, ' to ', req.path)
+    console.log('===>>>', req.method, '\t to ', req.path)
     // debugger
     next()
   })
@@ -189,5 +189,11 @@ const serverInit = () => {
     const otherUsers = await req.user.otherUsers()
 
     res.status(200).send( otherUsers )
+  })
+
+  app.post('/start_conversation', loginRequired, async (req, res) => {
+    const conversation = await req.user.startConversation(req.body.userId)
+
+    res.status(200).send( conversation )
   })
 }
