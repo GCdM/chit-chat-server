@@ -4,8 +4,15 @@ const User = require('./User')
 const Conversation = require('./Conversation')
 
 const MessageSchema = new mongoose.Schema({
-    senderId: mongoose.ObjectId,
-    content: String,
+    sender: {
+      type: mongoose.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    content: {
+      type: String,
+      required: true,
+    },
   },
   {
     timestamps: true,

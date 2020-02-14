@@ -6,10 +6,24 @@ const Message = require('./Message')
 const serialiser = require('../utils/serialiser')
 
 const UserSchema = new mongoose.Schema({
-    username: String,
-    passwordDigest: String,
-    publicKey: String,
-    encPrivateKey: String,
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    passwordDigest: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    publicKey: {
+      type: String,
+      required: true,
+    },
+    encPrivateKey: {
+      type: String,
+      required: true,
+    },
   },
   {
     timestamps: true,
@@ -19,21 +33,22 @@ const UserSchema = new mongoose.Schema({
 const User = mongoose.model('User', UserSchema)
 
 const previewConversation = async (conversation, userId) => {
-  const { originalSenderId, originalRecipientId } = conversation
-  const otherUserId = originalSenderId == userId ? originalRecipientId : originalSenderId
+  const { originalSender, originalRecipient } = conversation
+  const otherUserId = originalSender == userId ? originalRecipient : originalSender
   const otherUser = await User.findById(otherUserId)
-  
+  debugger
   return {
     id: conversation.id,
     otherUsername: otherUser.username,
   }
 }
+
 ///// Get all conversations for a user, whether or not they 
 ///// were the ones to start the conversation
 User.prototype.myConversations = async function() {
 
   const conversations = await Conversation.find({})
-  .or([{ originalRecipientId: this.id }, { originalSenderId: this.id }])
+  .or([{ originalRecipient: this._id }, { originalSender: this._id }])
   .sort({ updatedAt: 'desc' })
 
   const conversationPreviewPromises = conversations.map( c => previewConversation(c, this.id) )
@@ -41,6 +56,7 @@ User.prototype.myConversations = async function() {
   return await Promise.all( conversationPreviewPromises )
 }
 
+///// Get all users except for `this` (/"self")
 User.prototype.otherUsers = async function() {
   
   const otherUsers = await User.find({ _id: { $ne: this._id } })
@@ -48,16 +64,17 @@ User.prototype.otherUsers = async function() {
   return otherUsers.map( serialiser.sanitiseOtherUser )
 }
 
+///// Find existing conversation, otherwise create new one
 User.prototype.startConversation = async function(userId) {
 
   const orOptions = [
-    { originalSenderId: this.id, originalRecipientId: userId },
-    { originalSenderId: userId, originalRecipientId: this.id },
+    { originalSender: this.id, originalRecipient: userId },
+    { originalSender: userId, originalRecipient: this.id },
   ]
   
   let conversation = await Conversation.findOne().or(orOptions)
 
-  if (!conversation) conversation = await Conversation.create({ originalSenderId: this.id, originalRecipientId: userId })
+  if (!conversation) conversation = await Conversation.create({ originalSender: this.id, originalRecipient: userId })
 
   const conversationPreview = await previewConversation(conversation, this.id)
   
