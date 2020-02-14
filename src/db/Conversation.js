@@ -1,8 +1,5 @@
 const mongoose = require('mongoose')
 
-const User = require('./User')
-const Message = require('./Message')
-
 const ConversationSchema = new mongoose.Schema({
     originalSender: {
       type: mongoose.ObjectId,
@@ -26,17 +23,8 @@ const ConversationSchema = new mongoose.Schema({
   }
 )
 
-// ConversationSchema.pre('save', async function() {
-//   debugger
-//   const sender = await User.findOne({ id: this.originalSenderId })
-//   const recipient = await User.findOne({ id: this.originalRecipientId })
-  
-//   debugger
-  
-//   const encSenderKey = ""
-//   const encRecipientKey = ""
-// })
+ConversationSchema.pre('save', async function() {
+  if (this.isNew) await this.calculateKeys()
+})
 
-const Conversation = mongoose.model('Conversation', ConversationSchema)
-
-module.exports = Conversation
+module.exports = mongoose.model('Conversation', ConversationSchema)
