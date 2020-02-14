@@ -1,3 +1,5 @@
+const User = require('../db/User')
+
 const sanitiseUser = (userObj) => {
   return {
     id: userObj.id,
@@ -13,7 +15,19 @@ const sanitiseOtherUser = (userObj) => {
   }
 }
 
+const previewConversation = async (conversation, userId) => {
+  const { originalSender, originalRecipient } = conversation
+  const otherUserId = originalSender == userId ? originalRecipient : originalSender
+  const otherUser = await User.findById(otherUserId)
+
+  return {
+    id: conversation.id,
+    otherUsername: otherUser.username,
+  }
+}
+
 module.exports = {
   sanitiseUser,
   sanitiseOtherUser,
+  previewConversation,
 }

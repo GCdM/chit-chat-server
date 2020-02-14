@@ -4,22 +4,17 @@ const express = require('express')
 const http = require('http')
 // const https = require('https')
 // const fs = require('fs')
-// const io = require('socket.io')(server)
-// const mongoose = require('mongoose')
 const crypto = require('crypto')
 const bcrypt = require('bcryptjs')
 const sessionCookie = require('client-sessions')
 
 const db = require('./src/db/db')
-// const UserSchema = require('./src/db/UserSchema')
-// const ConversationSchema = require('./src/db/ConversationSchema')
-// const MessageSchema = require('./src/db/MessageSchema')
 const serialiser = require('./src/utils/serialiser')
 const helper = require('./src/utils/helper')
 const { pubPrivPairConfig } = require('./src/utils/configuration')
 
-///// CONFIGURE SSL/TLS /////
-/////////////////////////////
+///// CONFIGURE SSL/TLS \\\\\
+//\/\/\/\/\/\/\/\/\/\/\/\/\\\
 // const options = {
 //   key: fs.readFileSync('./ssl/aliashost.key'),
 //   cert: fs.readFileSync('./ssl/aliashost.crt'),
@@ -30,8 +25,8 @@ const { pubPrivPairConfig } = require('./src/utils/configuration')
 const app = express()
 const server = http.Server(app)
 
-///// CONNECT TO DB /////
-/////////////////////////
+///// CONNECT TO DB \\\\\
+//\/\/\/\/\/\/\/\/\/\/\\\
 ///// Handle database connection error
 db.connection.on('error', (err) => {
   console.log('MongoDB Error: ', err)
@@ -48,16 +43,12 @@ db.connection.once('open', () => {
   })
 })
 
-///// SPIN UP SERVER /////
-//////////////////////////
+///// SPIN UP SERVER \\\\\
+//\/\/\/\/\/\/\/\/\/\/\/\\
 const serverInit = () => {
-  ///// Create DB Models
-  // const User = new mongoose.model('User', UserSchema)
-  // const Conversation = new mongoose.model('Conversation', ConversationSchema)
-  // const Message = new mongoose.model('Message', MessageSchema)
 
-  ///// MIDDLEWARES /////
-  ///////////////////////
+  ///// MIDDLEWARES \\\\\
+  //\/\/\/\/\/\/\/\/\/\\\
   ///// Set headers for CORS policy
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*')  
@@ -85,7 +76,7 @@ const serverInit = () => {
 
   ///// Load user into session
   app.use(async (req, res, next) => {
-    // Conduct further checks to prevent session hijacking
+    // CONDUCT FURTHER CHECKS TO AVOID SESSION HIJACKING
     if (req.session.userId) {
       req.user = await db.User.findById(req.session.userId)
     }
@@ -109,14 +100,14 @@ const serverInit = () => {
     })
   }
 
-  ///// MISC ROUTES /////
-  ///////////////////////
+  ///// MISC ROUTES \\\\\
+  //\/\/\/\/\/\/\/\/\/\\\
   app.get('/status', (req, res) => {
     res.status(200).send({ status: 'Up and running' })
   })
 
-  ///// AUTH ROUTES /////
-  ///////////////////////
+  ///// AUTH ROUTES \\\\\
+  //\/\/\/\/\/\/\/\/\/\\\
   app.post('/signup', (req, res) => {
     // VALIDATE USERNAME IS UNIQUE AND PASSWORD IS SATISFACTORY
     const passwordDigest = bcrypt.hashSync(req.body.password, 12)
@@ -134,7 +125,6 @@ const serverInit = () => {
       newUser.encPrivateKey = helper.encryptData(privateKey, req.body.password)
       newUser.save()
       
-      // console.log(newUser.username, "'s private key is: ", privateKey)
       const sanitisedUser = serialiser.sanitiseUser(newUser)
       
       res.status(200).send( sanitisedUser )
@@ -177,8 +167,8 @@ const serverInit = () => {
     }
   })
 
-  ///// DATA ROUTES /////
-  ///////////////////////
+  ///// DATA ROUTES \\\\\
+  //\/\/\/\/\/\/\/\/\/\\\
   app.get('/initial_data', loginRequired, async (req, res) => {
     const conversationPreviews = await req.user.myConversations()
 

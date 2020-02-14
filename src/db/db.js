@@ -1,9 +1,9 @@
 const mongoose = require('mongoose')
 const crypto = require('crypto')
 
-const User = require('./UserBase')
-const Conversation = require('./ConversationBase')
-const Message = require('./MessageBase')
+const User = require('./User')
+const Conversation = require('./Conversation')
+const Message = require('./Message')
 const serialiser = require('../utils/serialiser')
 
 mongoose.connect('mongodb://localhost:27017/test', {
@@ -12,26 +12,16 @@ mongoose.connect('mongodb://localhost:27017/test', {
 })
 .catch( err => console.log('MongoDB Inital Connection Error: ', err) )
 
-const previewConversation = async (conversation, userId) => {
-  const { originalSender, originalRecipient } = conversation
-  const otherUserId = originalSender == userId ? originalRecipient : originalSender
-  const otherUser = await User.findById(otherUserId)
-
-  return {
-    id: conversation.id,
-    otherUsername: otherUser.username,
-  }
-}
-
-///// Get all conversations for a user, whether or not they 
-///// were the ones to start the conversation
+///// USER PROTO METHODS \\\\\
+//\/\/\/\/\/\/\/\/\/\/\/\/\/\\
+///// Get all conversations for a user
 User.prototype.myConversations = async function() {
 
   const conversations = await Conversation.find({})
   .or([{ originalRecipient: this._id }, { originalSender: this._id }])
   .sort({ updatedAt: 'desc' })
 
-  const conversationPreviewPromises = conversations.map( c => previewConversation(c, this.id) )
+  const conversationPreviewPromises = conversations.map( c => serialiser.previewConversation(c, this.id) )
 
   return await Promise.all( conversationPreviewPromises )
 }
@@ -61,6 +51,8 @@ User.prototype.startConversation = async function(userId) {
   return conversationPreview
 }
 
+///// CONVERSATION PROTO METHODS \\\\\
+//\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\\
 Conversation.prototype.calculateKeys = async function() {
   const sender = await User.findById(this.originalSender)
   const recipient = await User.findById(this.originalRecipient)
